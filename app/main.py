@@ -4,6 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 from .schemas import Offer, VideoTransformTrack
+from keras.models import model_from_json
+import cv2
 
 
 app = FastAPI()
@@ -33,17 +35,25 @@ async def offer(params: Offer):
             await peerConnection.close()
             peerConnections.discard(peerConnection)
 
-
     @peerConnection.on("track")
     def on_track(track):
         if track.kind == "audio":
             recorder.addTrack(track)
         elif track.kind == "video":
-            local_video = VideoTransformTrack(
-                track,
-                params.video_transform
-            )
-            peerConnection.addTrack(local_video)
+            if params.video_transform == 'emotion':
+                emotion_model_json = open('emotion_model.json', 'r')
+                loaded_model = emotion_model_json.read()
+                emotion_model_json.close()
+                emotion_model = model_from_json(loaded_model)
+                emotion_model.load_weights('emotion_model.h5')
+                face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+        local_video = VideoTransformTrack(
+            track,
+            params.video_transform,
+            emotion_model,
+            face_detector
+        )
+        peerConnection.addTrack(local_video)
 
         @track.on("ended")
         async def on_ended():
@@ -56,10 +66,12 @@ async def offer(params: Offer):
     # Create Answer
     answer = await peerConnection.createAnswer()
     await peerConnection.setLocalDescription(answer)
-    response = {"sdp": peerConnection.localDescription.sdp, "type": peerConnection.localDescription.type}
+    response = {"sdp": peerConnection.localDescription.sdp,
+                "type": peerConnection.localDescription.type}
 
     # Send Answer
     return response
+
 
 @app.on_event('shutdown')
 async def on_shutdown(app):
@@ -67,4 +79,3 @@ async def on_shutdown(app):
     coros = [peerConnection.close() for peerConnection in peerConnections]
     await asyncio.gather(*coros)
     peerConnections.clear()
-

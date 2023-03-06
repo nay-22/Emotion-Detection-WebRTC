@@ -25,6 +25,7 @@
         #media {
             max-width: 1280px;
         }
+
         .dn {
             display: none;
         }
@@ -68,6 +69,7 @@
             <option value="edges">Edge detection</option>
             <option value="cartoon">Cartoon effect</option>
             <option value="rotate">Rotate</option>
+            <option value="emotion">Emotion</option>
         </select>
         <select id="video-codec" class="dn">
             <option value="default" selected>Default codecs</option>
@@ -96,8 +98,6 @@
 
     <div id="media" style="display: block">
         <h2>Live Stream</h2>
-
-        <audio id="audio" autoplay="true"></audio>
         <video id="video" autoplay="true" playsinline="true"></video>
     </div>
 
@@ -106,11 +106,11 @@
 
     <h2 class="dn">SDP</h2>
 
-    <h3 class="dn">Offer</h3>
-    <pre class="dn" id="offer-sdp"></pre>
+    <h3 class="">Offer</h3>
+    <pre class="" id="offer-sdp"></pre>
 
-    <h3 class="dn">Answer</h3>
-    <pre class="dn" id="answer-sdp"></pre>
+    <h3 class="">Answer</h3>
+    <pre class="" id="answer-sdp"></pre>
 
     <script src="client.js"></script>
 </body>
