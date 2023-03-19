@@ -40,20 +40,19 @@ async def offer(params: Offer):
         if track.kind == "audio":
             recorder.addTrack(track)
         elif track.kind == "video":
-            if params.video_transform == 'emotion':
-                emotion_model_json = open('emotion_model.json', 'r')
-                loaded_model = emotion_model_json.read()
-                emotion_model_json.close()
-                emotion_model = model_from_json(loaded_model)
-                emotion_model.load_weights('emotion_model.h5')
-                face_detector = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
-        local_video = VideoTransformTrack(
-            track,
-            params.video_transform,
-            emotion_model,
-            face_detector
-        )
-        peerConnection.addTrack(local_video)
+            emotion_model_json = open('C:/Users/nayan/OneDrive/Desktop/API/EmDetect/app/emotion_model.json', 'r')
+            loaded_model = emotion_model_json.read()
+            emotion_model_json.close()
+            emotion_model = model_from_json(loaded_model)
+            emotion_model.load_weights('C:/Users/nayan/OneDrive/Desktop/API/EmDetect/app/emotion_model.h5')
+            face_detector = cv2.CascadeClassifier('C:/Users/nayan/OneDrive/Desktop/API/EmDetect/app/haarcascade_frontalface_default.xml')
+            local_video = VideoTransformTrack(
+                track,
+                params.video_transform,
+                face_detector,
+                emotion_model,
+            )
+            peerConnection.addTrack(local_video)
 
         @track.on("ended")
         async def on_ended():

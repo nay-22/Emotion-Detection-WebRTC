@@ -15,7 +15,7 @@
         }
 
         video {
-            width: 100%;
+            width: 60%;
         }
 
         .option {
@@ -67,9 +67,10 @@
         <select id="video-transform">
             <option value="none" selected>No transform</option>
             <option value="edges">Edge detection</option>
-            <option value="cartoon">Cartoon effect</option>
+            <option value="test">Test Effect</option>
             <option value="rotate">Rotate</option>
             <option value="emotion">Emotion</option>
+            <option value="cartoon">Cartoon Effect</option>
         </select>
         <select id="video-codec" class="dn">
             <option value="default" selected>Default codecs</option>
@@ -98,7 +99,7 @@
 
     <div id="media" style="display: block">
         <h2>Live Stream</h2>
-        <video id="video" autoplay="true" playsinline="true"></video>
+        <video id="video" autoplay="true"></video>
     </div>
 
     <h2 class="dn">Data channel</h2>

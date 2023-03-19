@@ -1,7 +1,8 @@
 from pydantic import BaseModel
 from aiortc import MediaStreamTrack
 from keras.models import model_from_json
-import cv2
+from fastapi import HTTPException
+import cv2 as cv
 import numpy as np
 from av import VideoFrame
 
@@ -15,7 +16,7 @@ class Offer(BaseModel):
 class VideoTransformTrack(MediaStreamTrack):
     kind = "video"
 
-    def __init__(self, track, transform, emotion_model, face_detector):
+    def __init__(self, track, transform, face_detector, emotion_model):
         super().__init__()
         self.track = track
         self.transform = transform
@@ -26,54 +27,44 @@ class VideoTransformTrack(MediaStreamTrack):
     async def recv(self):
         frame = await self.track.recv()
 
-        if self.transform == 'emotion':
-            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            faces_detected = self.face_detector.detectMultiScale(gray_frame, scaleFactor=1, minNeighbhors=5)
+        if self.transform =='test':
+            img = frame.to_ndarray(format='bgr24')
+            cv.rectangle(img, (100,100), (200,200), (0,0,255), 4)
+            nframe = VideoFrame.from_ndarray(img, format='bgr24')
+            nframe.pts = frame.pts
+            nframe.time_base = frame.time_base
+            return nframe
 
-            for (x, y, w, h) in faces_detected:
-                cv2.rectangle(frame, (x, y-50), (x+w, y+h+10), (0, 255, 0), 4)
-                roi_gray_frame = gray_frame[y:y+h, x:x+w]
-                cropped_img = np.expand_dims(np.expand_dims(cv2.resize(roi_gray_frame, (48, 48)), -1), 0)
+        elif self.transform == 'emotion':
+            img = frame.to_ndarray(format='bgr24')
+            gray = frame.to_ndarray(format='gray')
 
-                emotion = self.emotion_model.predict(cropped_img)
-                maxindex = int(np.argmax(emotion))
-                maxval =  "{:.2f}".format(np.amax(emotion)*100)
+            faces = self.face_detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+            for (x,y,w,h) in faces:
+                cv.rectangle(img, (x, y-50), (x+w, y+h+10), (0, 255, 0), 4)
+                roi_gray_frame = gray[y:y + h, x:x + w]
+                cropped_img = np.expand_dims(np.expand_dims(cv.resize(roi_gray_frame, (48, 48)), -1), 0)
 
-                cv2.putText(frame, self.emotion_dict[maxindex], (x+5, y-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
-                cv2.putText(frame, str(maxval)+"%", (x+200, y-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv2.LINE_AA)
+                # emotion_prediction = self.emotion_model.predict(cropped_img)
+                # maxindex = int(np.argmax(emotion_prediction))
+                # maxval =  "{:.2f}".format(np.amax(emotion_prediction)*100)
 
-            return frame
+                # print(maxindex)
+                # print(maxval)
 
-        if self.transform == "cartoon":
-            img = frame.to_ndarray(format="bgr24")
+                # cv.putText(img, self.emotion_dict[maxindex], (x+5, y-20), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
+                # cv.putText(img, str(maxval)+"%", (x+200, y-20), cv.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2, cv.LINE_AA)
 
-            img_color = cv2.pyrDown(cv2.pyrDown(img))
-            for _ in range(6):
-                img_color = cv2.bilateralFilter(img_color, 9, 9, 7)
-            img_color = cv2.pyrUp(cv2.pyrUp(img_color))
-
-            img_edges = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-            img_edges = cv2.adaptiveThreshold(
-                cv2.medianBlur(img_edges, 7),
-                255,
-                cv2.ADAPTIVE_THRESH_MEAN_C,
-                cv2.THRESH_BINARY,
-                9,
-                2,
-            )
-            img_edges = cv2.cvtColor(img_edges, cv2.COLOR_GRAY2RGB)
-
-            img = cv2.bitwise_and(img_color, img_edges)
-
-            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
-            new_frame.pts = frame.pts
-            new_frame.time_base = frame.time_base
-            return new_frame
+            nframe = VideoFrame.from_ndarray(img, format="bgr24")
+            nframe.pts = frame.pts
+            nframe.time_base = frame.time_base
+            return nframe
 
         elif self.transform == "edges":
 
             img = frame.to_ndarray(format="bgr24")
-            img = cv2.cvtColor(cv2.Canny(img, 100, 200), cv2.COLOR_GRAY2BGR)
+            # print(img)
+            img = cv.cvtColor(cv.Canny(img, 100, 200), cv.COLOR_GRAY2BGR)
 
             new_frame = VideoFrame.from_ndarray(img, format="bgr24")
             new_frame.pts = frame.pts
@@ -84,10 +75,39 @@ class VideoTransformTrack(MediaStreamTrack):
 
             img = frame.to_ndarray(format="bgr24")
             rows, cols, _ = img.shape
-            M = cv2.getRotationMatrix2D(
+            M = cv.getRotationMatrix2D(
                 (cols / 2, rows / 2), frame.time * 45, 1)
-            img = cv2.warpAffine(img, M, (cols, rows))
+            img = cv.warpAffine(img, M, (cols, rows))
 
+            new_frame = VideoFrame.from_ndarray(img, format="bgr24")
+            new_frame.pts = frame.pts
+            new_frame.time_base = frame.time_base
+            return new_frame
+        elif self.transform == "cartoon":
+            img = frame.to_ndarray(format="bgr24")
+
+            # prepare color
+            img_color = cv.pyrDown(cv.pyrDown(img))
+            for _ in range(6):
+                img_color = cv.bilateralFilter(img_color, 9, 9, 7)
+            img_color = cv.pyrUp(cv.pyrUp(img_color))
+
+            # prepare edges
+            img_edges = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
+            img_edges = cv.adaptiveThreshold(
+                cv.medianBlur(img_edges, 7),
+                255,
+                cv.ADAPTIVE_THRESH_MEAN_C,
+                cv.THRESH_BINARY,
+                9,
+                2,
+            )
+            img_edges = cv.cvtColor(img_edges, cv.COLOR_GRAY2RGB)
+
+            # combine color and edges
+            img = cv.bitwise_and(img_color, img_edges)
+
+            # rebuild a VideoFrame, preserving timing information
             new_frame = VideoFrame.from_ndarray(img, format="bgr24")
             new_frame.pts = frame.pts
             new_frame.time_base = frame.time_base

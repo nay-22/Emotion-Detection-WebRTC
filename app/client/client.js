@@ -97,11 +97,19 @@ function start() {
 
     pc = createPeerConnection();
 
-    var constraints = { audio: false, video: true };
+    var constraints = { 
+        audio: false, 
+        video: true ,
+        frameRate: {
+            ideal: 60,
+            min: 50
+        },
+    };
 
     navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
         stream.getTracks().forEach(function (track) {
             pc.addTrack(track, stream);
+            console.log(stream);
         });
         return negotiate();
     }, function (err) {
